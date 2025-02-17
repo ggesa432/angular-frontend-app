@@ -1,0 +1,58 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = "ggesa432/assessment-angular-app"
+        IMAGE_TAG = "latest"
+        DOCKER_REGISTRY = "https://index.docker.io/v1/"
+        DOCKER_CREDENTIALS_ID = "487ca6d-e885-4c75-9c51-9284cf0e9db8"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                // Pull code from GitHub
+                git branch: 'main',
+                    url: 'https://github.com/ggesa432/angular-frontend-app'
+            }
+        }
+
+        stage('Build Angular') {
+            steps {
+                // Install Node.js dependencies and build the Angular app
+                sh 'npm install'
+                // Adjust if your Angular version uses --configuration production
+                sh 'npm run build -- --prod'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    // Build the Docker image, tagging it with IMAGE_NAME:IMAGE_TAG
+                    docker.build("${IMAGE_NAME}:${IMAGE_TAG}", ".")
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    // Login to Docker Hub using stored credentials, then push
+                    docker.withRegistry("${DOCKER_REGISTRY}", "${DOCKER_CREDENTIALS_ID}") {
+                        docker.image("${IMAGE_NAME}:${IMAGE_TAG}").push()
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Docker image built and pushed successfully!"
+        }
+        failure {
+            echo "Build or push failed!"
+        }
+    }
+}
